@@ -150,6 +150,14 @@ class AudioConverterApp(BaseClass):
         self.geometry("780x740")
         self.minsize(740, 680)
         
+        # 윈도우 타이틀바 아이콘 지정
+        try:
+            if os.path.exists("audio_icon.ico"):
+                self.iconbitmap("audio_icon.ico")
+        except Exception:
+            pass
+
+        
         # 데이터 관리 변수
         self.target_format = ctk.StringVar(value="MP3")
         self.target_bitrate = ctk.StringVar(value="192")
