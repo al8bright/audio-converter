@@ -173,7 +173,11 @@ gyan.dev 8.1 essentials(SHA-256 확인)이고, `doctor --bundled`가 ffmpeg · f
 
 ### Phase 6 — 옛 화면 제거, 2.0.0
 
-- [ ] `gui_app.py`, `core_converter.py`, `requirements.txt`, `run_app.bat`, `build_exe.bat` 삭제
+- [x] `gui_app.py`, `core_converter.py`, `requirements.txt`, `run_app.bat`, `build_exe.bat` 삭제 (루트 아이콘은 `backend/src/audioconverter/assets/`로 옮김)
+- [x] 버전 2.0.0 (`pyproject.toml`, `__init__.py`, `package.json`, `App.tsx`, `Cargo.toml`, `tauri.conf.json`과 두 lock 파일)
+
+확인(2026-11-26): `uv lock --check`, `pytest`(138개), `ruff`, `pnpm lint` · `pnpm build`, `cargo check --locked`, `check_structure.py`(세 앱과 공통 파일 22개가 모두 같고
+빠진 파일 없음) 통과. `AudioConverter_2.0.0_x64-setup.exe`(71.9MB)를 다시 만들어 `doctor --bundled` 통과를 확인했습니다.
 
 ---
 

@@ -1,6 +1,6 @@
 [project]
 name = "audioconverter"
-version = "1.0.0"
+version = "2.0.0"
 description = "Audio Converter backend: batch audio conversion queue (FFmpeg)"
 authors = [
     { name = "al8bright" }
