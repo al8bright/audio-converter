@@ -163,8 +163,13 @@ WAV 16bit/44.1k(1.4MB)를 FLAC 24bit/96k로 골라 FLAC 16bit/44.1k(107KB)가 �
 
 ### Phase 5 — 설치 파일, CI, 문서
 
-- [ ] `scripts/build_app.ps1`(정해 둔 FFmpeg 빌드), `THIRD_PARTY_NOTICES.md`, `LICENSE`(MIT), CI
-- [ ] README를 실제 기능에 맞게 다시 씀
+- [x] `scripts/build_app.ps1`(정해 둔 FFmpeg 빌드), `THIRD_PARTY_NOTICES.md`, `LICENSE`(MIT), CI
+- [x] README를 실제 기능에 맞게 다시 씀
+
+확인(2026-11-26): `build_app.ps1`로 `AudioConverter_1.0.0_x64-setup.exe`(71.9MB)를 만들었습니다. FFmpeg는 video_converter와 같은
+gyan.dev 8.1 essentials(SHA-256 확인)이고, `doctor --bundled`가 ffmpeg · ffprobe · libmp3lame · aac · libvorbis · flac을 모두 확인했습니다.
+패키징된 백엔드를 FFmpeg가 없는 PATH로 실행해 FLAC(앨범 그림) → MP3 192k(그림 유지), WAV → FLAC 변환을 확인했습니다.
+`backend/dist/.../licenses/`에 앱 · FFmpeg · Python · Rust · JS 라이선스가 들어갑니다. FFmpeg가 아예 없는 PC에 설치해 보지는 않았습니다.
 
 ### Phase 6 — 옛 화면 제거, 2.0.0
 

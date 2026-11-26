@@ -2,7 +2,12 @@
 __pycache__/
 build/
 dist/
-*.spec
 .idea/
 .vscode/
 *.pyc
+*.egg-info/
+.pytest_cache/
+# 1.x 빌드가 만들던 spec (2.0 은 backend/packaging 의 spec 을 추적한다)
+/AudioConverter.spec
+# FFmpeg downloaded by scripts/build_app.ps1
+backend/.tools/
