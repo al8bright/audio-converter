@@ -3,9 +3,12 @@
 | 원본 | 목표 | 동작 |
 | DSD | 모든 형식 | 변환 |
 | 무손실 | 손실 | 변환 |
-| 무손실 | 무손실 | 목표(비트 깊이 × 샘플레이트)가 원본보다 낮을 때만 변환, 아니면 복사 |
+| 무손실 | 무손실 | 목표가 원본보다 낮으면 변환. 같거나 높으면 형식이 같을 때 복사, 다를 때(WAV → FLAC 등) 원본 음질로 변환 |
 | 손실 | 무손실 | 복사 |
 | 손실 | 손실 | 목표 비트레이트가 원본보다 낮을 때만 변환, 아니면 복사. 원본 비트레이트를 모르면 변환 |
+
+무손실로 만들 때 비트 깊이와 샘플레이트는 각각 원본보다 높이지 않는다(effective). 1.x 는 같은 음질의
+WAV → FLAC 을 복사해 WAV 를 FLAC 으로 줄이는 데 쓸 수 없었다.
 
 복사는 원본 파일을 형식 그대로 둔다(확장자도 원본 것). 1.x 는 목표 형식의 컨테이너에 스트림을 옮겨 담으려
 해서 MP3 → FLAC 은 실패하고 FLAC → WAV 는 플레이어가 못 여는 파일이 됐다.
@@ -13,7 +16,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
 
 from ..config import LOSSLESS_FORMATS
@@ -57,13 +60,30 @@ def khz(rate: int) -> str:
     return f"{v:g}"
 
 
+def effective(info: AudioInfo, target: Target) -> Target:
+    """실제로 만들 음질. 무손실 목표는 비트 깊이·샘플레이트를 각각 원본보다 높이지 않는다(DSD 는 목표 그대로)."""
+    if not target.lossless or info.dsd or not info.sample_rate:
+        return target
+    depth = 24 if target.bit_depth == 24 and info.bit_depth > 16 else 16
+    return replace(target, bit_depth=depth, sample_rate=min(target.sample_rate, info.sample_rate))
+
+
+def same_format(info: AudioInfo, target: Target) -> bool:
+    """원본이 이미 목표 형식인지(FLAC 은 flac, WAV 는 pcm)."""
+    return (target.format == "FLAC" and info.codec == "flac") or (
+        target.format == "WAV" and info.codec.startswith("pcm_"))
+
+
 def decide(info: AudioInfo, target: Target) -> Action:
     if info.dsd:
         return "encode"
     if info.lossless:
         if not target.lossless:
             return "encode"
-        return "encode" if target.bit_depth * target.sample_rate < info.bit_depth * info.sample_rate else "copy"
+        eff = effective(info, target)
+        if eff.bit_depth * eff.sample_rate < info.bit_depth * info.sample_rate:
+            return "encode"
+        return "copy" if same_format(info, target) else "encode"
     if target.lossless:
         return "copy"
     if info.bit_rate <= 0:

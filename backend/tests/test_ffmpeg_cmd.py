@@ -145,7 +145,9 @@ def test_자동_이름은_결과의_실제_음질로():
     assert dest.endswith("01 곡_192k.mp3")
     cd = AudioInfo("flac", 44100, 0, 16)
     _a, dest, _s = plan_output(SRC, cd, Target("WAV", bit_depth=24, sample_rate=96000), "", "suffix", None)
-    assert dest.endswith("01 곡_16bit_44.1k.flac")
+    assert dest.endswith("01 곡_16bit_44.1k.wav"), "형식이 다르면 원본 음질로 변환한다"
+    _a, dest, _s = plan_output(SRC, cd, Target("FLAC", bit_depth=24, sample_rate=96000), "", "suffix", None)
+    assert dest.endswith("01 곡_16bit_44.1k.flac"), "같은 형식이면 복사, 이름은 원본 음질"
     _a, dest, _s = plan_output(SRC.replace(".flac", ".mp3"), MP3_128, Target("MP3", 320), "", "prefix", None)
     assert dest.endswith("[128k]_01 곡.mp3")
     _a, dest, _s = plan_output(SRC.replace(".flac", ".m4a"), AudioInfo("aac", 44100), Target("FLAC"), "", "suffix", None)

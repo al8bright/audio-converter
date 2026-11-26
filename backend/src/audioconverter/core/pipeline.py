@@ -15,7 +15,7 @@ from typing import Literal
 
 from ..config import EXTENSIONS
 from . import leftovers
-from .decide import Target, auto_value, decide, source_affix, source_spec
+from .decide import Target, auto_value, decide, effective, source_affix, source_spec
 from .errorlog import log_conversion_error
 from .ffmpeg_cmd import (
     build_cover_cmd,
@@ -53,7 +53,7 @@ def plan_output(src: str, info: AudioInfo, target: Target, out_dir: str, name_mo
     # 복사는 원본 형식을 그대로 두므로 확장자도 원본 것이다
     ext = EXTENSIONS[target.format] if action == "encode" else os.path.splitext(src)[1]
     if value is None:
-        value = auto_value(name_mode, target.affix if action == "encode" else source_affix(info))
+        value = auto_value(name_mode, effective(info, target).affix if action == "encode" else source_affix(info))
     dest = resolve_output_path(src, out_dir, name_mode, value, ext)
     return action, dest, same_path(src, dest)
 
@@ -68,6 +68,8 @@ def convert(src: str, target: Target, out_dir: str = "", name_mode: str = "suffi
         return Result("failed", "오디오 정보를 읽지 못했습니다. 손상됐거나 오디오가 아닌 파일입니다.")
 
     action, dest, same = plan_output(src, info, target, out_dir, name_mode, value)
+    if action == "encode":
+        target = effective(info, target)  # 원본보다 높이지 않은 실제 음질로 만들고 알린다
     src_spec = f"{info.label} {source_spec(info)}"
     if action == "copy" and same:
         return Result("skipped", f"변환할 필요 없음: 원본 {src_spec}이(가) 목표 {target.label}보다 낮거나 같습니다.", dest)

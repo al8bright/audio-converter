@@ -2,7 +2,7 @@
 
 import pytest
 
-from audioconverter.core.decide import Target, decide, khz, source_spec
+from audioconverter.core.decide import Target, decide, effective, khz, source_spec
 from audioconverter.core.probe import AudioInfo, parse
 
 FLAC_24_96 = AudioInfo("flac", 96000, 0, 24)
@@ -21,12 +21,16 @@ AAC_UNKNOWN = AudioInfo("aac", 44100, 0)
     # 무손실 → 손실: 변환
     (FLAC_16_44, Target("MP3", 320), "encode"),
     (WAV_16_44, Target("OGG", 128), "encode"),
-    # 무손실 → 무손실: 목표가 낮을 때만 변환
+    # 무손실 → 무손실: 목표가 낮으면 변환
     (FLAC_24_96, Target("FLAC", bit_depth=16, sample_rate=44100), "encode"),
     (FLAC_24_96, Target("WAV", bit_depth=24, sample_rate=48000), "encode"),
-    (FLAC_24_96, Target("WAV", bit_depth=24, sample_rate=96000), "copy"),
+    (FLAC_24_96, Target("FLAC", bit_depth=16, sample_rate=192000), "encode"),
+    # 같거나 높으면 형식이 같을 때 복사, 다를 때 원본 음질로 변환
     (FLAC_16_44, Target("FLAC", bit_depth=24, sample_rate=96000), "copy"),
-    (FLAC_16_44, Target("WAV", bit_depth=16, sample_rate=44100), "copy"),
+    (WAV_16_44, Target("WAV", bit_depth=24, sample_rate=96000), "copy"),
+    (WAV_16_44, Target("FLAC", bit_depth=16, sample_rate=44100), "encode"),
+    (FLAC_24_96, Target("WAV", bit_depth=24, sample_rate=96000), "encode"),
+    (AudioInfo("alac", 44100, 0, 16), Target("FLAC", bit_depth=24, sample_rate=96000), "encode"),
     # 손실 → 무손실: 복사(음질을 높일 수 없다)
     (MP3_320, Target("FLAC", bit_depth=24, sample_rate=192000), "copy"),
     # 손실 → 손실: 목표 비트레이트가 낮을 때만 변환
@@ -105,3 +109,12 @@ def test_원본_형식_이름():
     assert AudioInfo("pcm_s24le").label == "WAV"
     assert AudioInfo("vorbis").label == "OGG"
     assert AudioInfo("aac").label == "AAC"
+
+
+def test_무손실로_만들_때_원본보다_높이지_않는다():
+    assert effective(WAV_16_44, Target("FLAC", bit_depth=24, sample_rate=96000)).label == "FLAC 16bit/44.1k"
+    assert effective(FLAC_24_96, Target("WAV", bit_depth=24, sample_rate=48000)).label == "WAV 24bit/48k"
+    assert effective(AudioInfo("flac", 96000, 0, 16), Target("FLAC", bit_depth=24, sample_rate=48000)).spec == "16bit/48k"
+    assert effective(AudioInfo("flac", 48000, 0, 20), Target("FLAC", bit_depth=24, sample_rate=48000)).bit_depth == 24
+    assert effective(DSD64, Target("FLAC", bit_depth=24, sample_rate=192000)).spec == "24bit/192k", "DSD 는 목표 그대로"
+    assert effective(FLAC_24_96, Target("MP3", 320)) == Target("MP3", 320)
