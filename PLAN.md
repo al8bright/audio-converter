@@ -152,7 +152,14 @@ WAV 16bit/44.1k(1.4MB)를 FLAC 24bit/96k로 골라 FLAC 16bit/44.1k(107KB)가 �
 
 ### Phase 4 — Tauri 셸
 
-- [ ] 공통 `lib.rs`, 끌어다 놓기, 닫기 확인, 아이콘(`audio_icon.png`에서 다시 만듦)
+- [x] 공통 `lib.rs`, 끌어다 놓기, 닫기 확인, 아이콘(`audio_icon.png`에서 다시 만듦)
+
+`app/src-tauri/`는 video_converter의 것을 복사하고 앱 값만 바꿨습니다(`app_info.rs`: AUDIOCONVERTER, audioconverter-backend;
+`tauri.conf.json`: AudioConverter, dev.al8bright.audioconverter, devUrl 5176). 아이콘 원본은 `backend/src/audioconverter/assets/`.
+
+확인(2026-11-26): `cargo check` 통과. `pnpm tauri dev`로 창을 띄워 백엔드가 뜨고, 창의 '경로로 추가'로 폴더를 담아 목록이 채워짐을 봤습니다.
+변환 중에 앱을 강제 종료(`taskkill /F`)하면 ffmpeg 8개와 백엔드(uv · python)가 모두 끝나고 임시 파일이 남지 않았습니다.
+끌어다 놓기와 파일·폴더 선택 창은 실제 마우스가 필요해 자동으로 시험하지 않았습니다(video_converter와 같은 코드).
 
 ### Phase 5 — 설치 파일, CI, 문서
 
