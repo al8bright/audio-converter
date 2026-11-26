@@ -1,0 +1,44 @@
+[project]
+name = "audioconverter"
+version = "1.0.0"
+description = "Audio Converter backend: batch audio conversion queue (FFmpeg)"
+authors = [
+    { name = "al8bright" }
+]
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "pydantic>=2.9",
+    "uvicorn[standard]>=0.32",
+]
+
+[project.scripts]
+audioconverter = "audioconverter:main"
+
+[build-system]
+requires = ["uv_build>=0.12.22,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28",
+    "pyinstaller>=6.11",
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "B905"]
+
+[tool.uv]
+environments = ["sys_platform == 'win32'"]

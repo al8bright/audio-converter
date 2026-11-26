@@ -59,6 +59,9 @@ README는 MP3 전용이라고 쓰여 있지만 코드는 아래까지 합니다.
 | 테스트 없음 | — | 판단 표, 출력 경로, FFmpeg 명령을 테스트로 고정 |
 | 실패 메시지 | FFmpeg 출력 전체 | 요약(시작 로그를 걸러 마지막 몇 줄) |
 | `.spec` | `.gitignore`가 무시하는데 빌드 스크립트가 매번 다시 만듦 | `backend/packaging`에 두고 추적 |
+| 복사가 형식을 바꾸려 함 (Phase 1에서 찾음) | 복사도 목표 확장자로 `-c:a copy`. MP3 → FLAC은 실패하고, FLAC → WAV는 FLAC 스트림이 든 `.wav`(플레이어가 못 엶) | 원본 파일을 형식·확장자 그대로 복사 |
+| 앨범 그림 (Phase 1에서 찾음) | 그림이 있는 원본을 M4A로 만들면 실패. OGG는 그림이 Theora 영상 트랙이 됨 | MP3·M4A·FLAC은 그림을 다시 인코딩하지 않고 붙이고, OGG·WAV는 뺌. 태그는 모든 형식에 옮김 |
+| 고음질 원본의 OGG (Phase 1에서 찾음) | 96kHz 원본이나 모노 22kHz + 320k는 libvorbis가 시작하지 못함 | 손실 형식은 48kHz를 넘지 않게 하고, 그래도 안 되면 품질 값(`-q:a`)으로 다시 만듦 |
 
 ---
 
@@ -101,11 +104,20 @@ video_converter와 같은 경로를 씁니다: `/health`, `/system`, `/state`, `
 
 ### Phase 1 — 변환 로직 다시 쓰기
 
-- [ ] `backend/` 만들고 `core_converter.py`를 위 표대로 나눔
-- [ ] 테스트: 판단 표 전체, 출력 경로, 형식별 FFmpeg 명령, 덮어쓰기(임시 파일 교체)
-- [ ] video_converter의 실행기로 진행률·중단
+- [x] `backend/` 만들고 `core_converter.py`를 위 표대로 나눔 (공통 파일 `api/base.py`, `core/proc.py`, `tests/test_common.py`, `packaging/entry.py`, `scripts/`는 video_converter에서 복사)
+- [x] 테스트: 판단 표 전체, 출력 경로, 형식별 FFmpeg 명령, 덮어쓰기(임시 파일 교체)
+- [x] video_converter의 실행기로 진행률·중단. 강제 종료로 남은 임시 파일은 `core/leftovers.py`가 다음 시작 때 지움
 
 완료 기준: `uv run pytest` 통과. CLI로 파일 하나를 형식별로 변환하고 덮어쓰기가 됩니다.
+
+확인(2026-11-26): 테스트 93개 통과(FFmpeg가 PATH에 있으면 실제 변환 시험 포함, 없으면 그 시험만 건너뜀).
+`uv run audioconverter convert`로 FLAC 24bit/96k(앨범 그림·한글 태그)를 MP3·M4A·OGG·FLAC 16/24bit·WAV로 변환해
+ffprobe로 코덱·샘플레이트·비트 깊이·태그·그림을 확인했고, 10분짜리 파일에서 진행률이 나옴을 봤습니다.
+덮어쓰기(같은 형식: 원본 교체, 다시 하면 건너뜀 / 다른 형식: 원본 남김), MP3 → FLAC·더 높은 비트레이트(복사),
+모노 22kHz → OGG 320k(품질 값으로 다시)도 확인했습니다. 임시 파일은 남지 않았습니다.
+`scripts/check_structure.py`: 지금 있는 공통 파일은 세 앱과 같음(화면·Tauri·빌드 파일은 Phase 2~5에서 생겨 아직 '없음').
+
+남은 점: 복사한 파일의 이름에도 목표 규격 접미사(예: `_24bit_96k`)가 붙어 실제 규격과 다를 수 있습니다(1.x와 같음). Phase 2에서 화면의 예정 동작과 함께 정합니다.
 
 ### Phase 2 — Service와 API
 
