@@ -99,3 +99,9 @@ def test_ffprobe_비트레이트는_스트림_값만_본다():
     info = parse({"streams": [{"codec_type": "audio", "codec_name": "mp3", "sample_rate": "44100"}],
                   "format": {"bit_rate": "999000", "duration": "N/A"}})
     assert info.bit_rate == 0 and info.duration == 0.0
+
+
+def test_원본_형식_이름():
+    assert AudioInfo("pcm_s24le").label == "WAV"
+    assert AudioInfo("vorbis").label == "OGG"
+    assert AudioInfo("aac").label == "AAC"

@@ -5,9 +5,13 @@ r"""변환 상수와 데이터 폴더.
 
 from __future__ import annotations
 
+import json
 import os
+import threading
 from pathlib import Path
 from typing import Literal
+
+from pydantic import BaseModel, Field, ValidationError
 
 SUPPORTED_EXTENSIONS = (".mp3", ".m4a", ".ogg", ".flac", ".wav", ".ape", ".dsf", ".dff")
 
@@ -19,6 +23,16 @@ EXTENSIONS = {"MP3": ".mp3", "M4A": ".m4a", "OGG": ".ogg", "FLAC": ".flac", "WAV
 BITRATES = (320, 256, 192, 128)  # kbps
 BIT_DEPTHS = (24, 16)
 SAMPLE_RATES = (192000, 96000, 48000, 44100)
+Bitrate = Literal[320, 256, 192, 128]
+BitDepth = Literal[24, 16]
+SampleRate = Literal[192000, 96000, 48000, 44100]
+SaveMode = Literal["same", "folder"]
+NameMode = Literal["suffix", "prefix", "overwrite"]
+Sidebar = Literal["open", "closed"]
+
+# 동시 변환 수. 오디오 인코더는 파일 하나에 CPU 코어 하나쯤을 쓴다. 권장값은 4개(코어가 적으면 코어 수)
+MAX_SLOTS = 8
+DEFAULT_JOBS = 4
 
 # 손실 형식은 이보다 높은 샘플레이트로 만들지 않는다. libvorbis 는 96kHz 원본이면 시작조차 못 하고,
 # LAME 은 스스로 48kHz 로 내린다. 사람이 듣는 범위에서 차이가 없어 세 형식을 같게 둔다
@@ -42,3 +56,46 @@ def app_home() -> Path:
         return Path(override)
     base = os.environ.get("APPDATA") or str(Path.home() / ".config")
     return Path(base) / "AudioConverter"
+
+
+def recommended_jobs() -> int:
+    return max(1, min(DEFAULT_JOBS, os.cpu_count() or 1))
+
+
+class Settings(BaseModel):
+    jobs: int | None = Field(default=None, ge=1, le=MAX_SLOTS)  # None 이면 권장값(recommended_jobs)
+    format: Format = "MP3"
+    bitrate: Bitrate = 192  # MP3·M4A·OGG
+    bit_depth: BitDepth = 16  # FLAC·WAV
+    sample_rate: SampleRate = 44100  # FLAC·WAV
+    save_mode: SaveMode = "same"
+    save_dir: str = ""  # save_mode 가 folder 일 때만 쓴다
+    name_mode: NameMode = "suffix"
+    # 이름에 붙일 문구. 비우면 결과의 음질로 정한다(접미사 _192k, 접두사 [192k]_)
+    name_text: str = Field(default="", max_length=40)
+    sidebar: Sidebar = "open"  # 사이드바 접기/펴기. 다음 실행에도 그대로 연다
+
+
+class SettingsStore:
+    def __init__(self, path: Path | None = None) -> None:
+        self.path = path or app_home() / "settings.json"
+        self.lock = threading.Lock()
+        self.value = self._load()
+
+    def _load(self) -> Settings:
+        try:
+            return Settings.model_validate_json(self.path.read_text(encoding="utf-8"))
+        except (OSError, ValidationError, ValueError):
+            return Settings()
+
+    def get(self) -> Settings:
+        with self.lock:
+            return self.value.model_copy()
+
+    def save(self, value: Settings) -> None:
+        with self.lock:
+            self.value = value.model_copy()
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(value.model_dump(), ensure_ascii=False, indent=2), encoding="utf-8")
+            os.replace(tmp, self.path)

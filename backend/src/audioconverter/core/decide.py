@@ -71,6 +71,24 @@ def decide(info: AudioInfo, target: Target) -> Action:
     return "encode" if target.bitrate < info.bit_rate / 1000 else "copy"
 
 
+def source_affix(info: AudioInfo) -> str:
+    """원본 그대로 복사한 파일 이름에 붙일 문구: 16bit_44.1k, 128k. 비트레이트를 모르면 코덱 이름(aac)."""
+    if info.lossless and not info.dsd:
+        return f"{info.bit_depth}bit_{khz(info.sample_rate)}k"
+    if info.bit_rate:
+        return f"{round(info.bit_rate / 1000)}k"
+    return info.label.lower()
+
+
+def auto_value(name_mode: str, affix: str) -> str:
+    """자동 이름 규칙: 접미사 _192k, 접두사 [192k]_, 덮어쓰기는 없음."""
+    if name_mode == "suffix":
+        return f"_{affix}"
+    if name_mode == "prefix":
+        return f"[{affix}]_"
+    return ""
+
+
 def source_spec(info: AudioInfo) -> str:
     """원본 음질: DSD128, 24bit/96k, 320k (비트레이트를 모르면 '?k')"""
     if info.dsd:

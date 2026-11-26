@@ -15,7 +15,7 @@ from typing import Literal
 
 from ..config import EXTENSIONS
 from . import leftovers
-from .decide import Target, decide, source_spec
+from .decide import Target, auto_value, decide, source_affix, source_spec
 from .errorlog import log_conversion_error
 from .ffmpeg_cmd import (
     build_cover_cmd,
@@ -43,17 +43,22 @@ class Result:
     output: str | None = None
 
 
-def plan_output(src: str, info: AudioInfo, target: Target, out_dir: str, name_mode: str, value: str
+def plan_output(src: str, info: AudioInfo, target: Target, out_dir: str, name_mode: str, value: str | None
                 ) -> tuple[str, str, bool]:
-    """(동작 encode|copy, 결과 경로, 원본과 같은 경로인지)"""
+    """(동작 encode|copy, 결과 경로, 원본과 같은 경로인지)
+
+    value 가 None 이면 이름에 붙일 문구를 결과의 실제 음질로 정한다: 변환이면 목표(_192k), 복사면 원본(_16bit_44.1k).
+    """
     action = decide(info, target)
     # 복사는 원본 형식을 그대로 두므로 확장자도 원본 것이다
     ext = EXTENSIONS[target.format] if action == "encode" else os.path.splitext(src)[1]
+    if value is None:
+        value = auto_value(name_mode, target.affix if action == "encode" else source_affix(info))
     dest = resolve_output_path(src, out_dir, name_mode, value, ext)
     return action, dest, same_path(src, dest)
 
 
-def convert(src: str, target: Target, out_dir: str = "", name_mode: str = "suffix", value: str = "",
+def convert(src: str, target: Target, out_dir: str = "", name_mode: str = "suffix", value: str | None = None,
             progress: Progress | None = None, cancel: threading.Event | None = None,
             probe_fn: Callable[[str], AudioInfo | None] = probe) -> Result:
     if not os.path.isfile(src):
@@ -132,4 +137,6 @@ def convert(src: str, target: Target, out_dir: str = "", name_mode: str = "suffi
 
     if action == "copy":
         return Result("copied", f"원본 그대로 복사: 원본 {src_spec}이(가) 목표 {target.label}보다 낮거나 같습니다.", dest)
+    if name_mode == "overwrite" and not same:
+        note += " (형식이 달라 원본은 그대로 둠)"
     return Result("done", f"{src_spec} → {target.label}{note}", dest)

@@ -8,6 +8,11 @@ import subprocess
 
 import pytest
 
+from audioconverter.config import Settings, SettingsStore
+from audioconverter.core.pipeline import Result
+from audioconverter.core.probe import AudioInfo
+from audioconverter.core.service import Service
+
 
 @pytest.fixture(autouse=True)
 def _isolate(tmp_path, monkeypatch):
@@ -57,3 +62,81 @@ def make_audio(path, *, codec: str = "flac", rate: int = 44100, seconds: float =
         os.remove(out)
         os.remove(jpg)
     return path
+
+
+# ------------------------------------------------------------------ Service (FFmpeg·스레드 없이)
+
+INFO = AudioInfo("flac", 96000, 0, 24, 2, 180.0)
+
+
+def audio(folder, name: str, data: bytes = b"a" * 100) -> str:
+    """빈 오디오 파일을 만든다(내용은 보지 않는다)."""
+    p = folder / name
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(data)
+    return str(p)
+
+
+class FakeConvert:
+    """pipeline.convert 대신. 파일 이름별로 결과를 정하고, 받은 인자를 기록한다."""
+
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+        self.results: dict[str, object] = {}  # 파일 이름 -> Result | 예외 | callable(progress, cancel)
+
+    def __call__(self, path, target, out_dir, name_mode, value, progress, cancel):
+        self.calls.append({"path": path, "target": target, "out_dir": out_dir, "name_mode": name_mode,
+                           "value": value})
+        r = self.results.get(os.path.basename(path))
+        if r is None:
+            r = Result("done", "FLAC 24bit/96k → MP3 192k", os.path.splitext(path)[0] + "_192k.mp3")
+        if isinstance(r, BaseException):
+            raise r
+        if callable(r):
+            return r(progress, cancel)
+        progress(50.0, "00:01:30.00", "80x")
+        return r
+
+
+def run_now(fn, *args):
+    """스레드 대신 그 자리에서 돌린다."""
+    fn(*args)
+
+
+@pytest.fixture
+def store(tmp_path):
+    return SettingsStore(tmp_path / "settings.json")
+
+
+@pytest.fixture
+def convert():
+    return FakeConvert()
+
+
+@pytest.fixture
+def probes():
+    """파일 이름 -> AudioInfo(None 이면 실패). 없으면 INFO."""
+    return {}
+
+
+@pytest.fixture
+def killed():
+    return []
+
+
+@pytest.fixture
+def make_svc(store, convert, probes, killed, tools_dir):
+    def make(spawn=run_now, recommended=4):
+        return Service(settings=store, convert=convert, spawn=spawn, kill=lambda: killed.append(1),
+                       probe=lambda p: probes.get(os.path.basename(p), INFO),
+                       detect=lambda: {"cpu_count": 8, "recommended_jobs": recommended})
+
+    return make
+
+
+@pytest.fixture
+def svc(make_svc):
+    return make_svc()
+
+
+__all__ = ["INFO", "FakeConvert", "Result", "Settings", "audio", "make_audio", "needs_ffmpeg", "run_now"]

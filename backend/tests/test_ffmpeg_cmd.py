@@ -137,3 +137,18 @@ def test_실패_사유_요약():
     assert "ffmpeg version" not in s and "line 0" in s and "..." in s and len(s.splitlines()) == 20
     assert summarize_stderr("") == "(stderr 없음)"
     assert last_error_line(err) == "line 39"
+
+
+def test_자동_이름은_결과의_실제_음질로():
+    """변환이면 목표 음질, 복사면 원본 음질. 1.x 는 복사한 파일에도 목표 음질을 붙였다."""
+    _a, dest, _s = plan_output(SRC, FLAC_24_96, Target("MP3", 192), "", "suffix", None)
+    assert dest.endswith("01 곡_192k.mp3")
+    cd = AudioInfo("flac", 44100, 0, 16)
+    _a, dest, _s = plan_output(SRC, cd, Target("WAV", bit_depth=24, sample_rate=96000), "", "suffix", None)
+    assert dest.endswith("01 곡_16bit_44.1k.flac")
+    _a, dest, _s = plan_output(SRC.replace(".flac", ".mp3"), MP3_128, Target("MP3", 320), "", "prefix", None)
+    assert dest.endswith("[128k]_01 곡.mp3")
+    _a, dest, _s = plan_output(SRC.replace(".flac", ".m4a"), AudioInfo("aac", 44100), Target("FLAC"), "", "suffix", None)
+    assert dest.endswith("01 곡_aac.m4a"), "비트레이트를 모르면 코덱 이름"
+    _a, dest, same = plan_output(SRC, FLAC_24_96, Target("FLAC", bit_depth=16), "", "overwrite", None)
+    assert dest == SRC and same

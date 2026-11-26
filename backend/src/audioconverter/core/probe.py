@@ -43,8 +43,12 @@ class AudioInfo:
 
     @property
     def label(self) -> str:
-        """화면에 보일 원본 형식: FLAC, MP3, DSD128 등."""
-        return self.dsd or self.codec.upper()
+        """화면에 보일 원본 형식: FLAC, MP3, WAV, OGG, DSD128 등."""
+        if self.dsd:
+            return self.dsd
+        if self.codec.startswith("pcm_"):
+            return "WAV"  # 받는 파일 중 PCM 은 .wav 뿐이다
+        return {"vorbis": "OGG"}.get(self.codec, self.codec.upper())
 
     def to_dict(self) -> dict:
         return {**asdict(self), "dsd": self.dsd, "lossless": self.lossless, "label": self.label}
